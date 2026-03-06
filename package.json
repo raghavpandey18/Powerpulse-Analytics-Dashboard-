@@ -1,0 +1,17 @@
+{
+    "name": "data-analytics-project",
+    "version": "1.0.0",
+    "description": "Electricity Consumption Analytics",
+    "main": "index.js",
+    "scripts": {
+        "install:backend": "cd backend && python3 -m pip install -r requirements.txt",
+        "install:frontend": "cd frontend && npm install",
+        "postinstall": "npm run install:frontend && npm run install:backend",
+        "start:backend": "cd backend && python3 app.py",
+        "start:frontend": "cd frontend && npm run dev",
+        "start": "npx concurrently \"npm run start:backend\" \"npm run start:frontend\""
+    },
+    "devDependencies": {
+        "concurrently": "^8.2.2"
+    }
+}

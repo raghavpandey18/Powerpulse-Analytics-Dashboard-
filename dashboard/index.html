@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PowerPulse Analytics | Electricity Consumption</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0a0c10;
+            color: #f8fafc;
+        }
+
+        .glass-card {
+            background: rgba(17, 25, 40, 0.75);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 350px;
+            width: 100%;
+        }
+    </style>
+</head>
+
+<body class="p-8">
+    <div class="max-w-7xl mx-auto space-y-8">
+        <!-- Header -->
+        <header class="flex justify-between items-center pb-6 border-b border-gray-800">
+            <div>
+                <h1 class="text-4xl font-extrabold gradient-text">PowerPulse Analytics</h1>
+                <p class="text-gray-400 mt-2">Exploration of Electricity Consumption Patterns in India (2019-2020)</p>
+            </div>
+            <div class="glass-card px-6 py-3 flex items-center gap-3">
+                <i data-lucide="activity" class="text-green-500"></i>
+                <span class="font-semibold text-sm">System Live</span>
+            </div>
+        </header>
+
+        <!-- Stats Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6" id="stats-grid">
+            <!-- Stats will be injected here -->
+        </div>
+
+        <!-- Dashboard Grid -->
+        <div class="grid grid-cols-12 gap-8">
+            <!-- Scenario 1 -->
+            <div class="col-span-12 glass-card p-8 space-y-6">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h2 class="text-xl font-bold">Scenario 1: Change in Overall Consumption Trends</h2>
+                        <p class="text-gray-400 text-sm">Monthly average consumption across regions (2019-2020)</p>
+                    </div>
+                    <div
+                        class="bg-red-500/10 border border-red-500 text-red-500 px-3 py-1 rounded-full text-xs flex items-center gap-2">
+                        <i data-lucide="alert-triangle" class="w-3 h-3"></i>
+                        COVID-19 Impact Phase
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="trendsChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Scenario 2 -->
+            <div class="col-span-12 lg:col-span-5 glass-card p-8 space-y-6">
+                <h2 class="text-xl font-bold">Scenario 2: Regional Variations</h2>
+                <div class="chart-container">
+                    <canvas id="regionalChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Scenario 3 -->
+            <div class="col-span-12 lg:col-span-7 glass-card p-8 space-y-6">
+                <h2 class="text-xl font-bold">Scenario 3: Recovery Analysis</h2>
+                <div class="chart-container">
+                    <canvas id="recoveryChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <footer class="mt-16 text-center text-gray-500 text-sm">
+            <p>© 2026 PowerPulse Analytics | Built for Data Insights</p>
+        </footer>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5000/api';
+
+        async function fetchData(endpoint) {
+            const response = await fetch(`${API_BASE}/${endpoint}`);
+            return response.json();
+        }
+
+        function createStatCard(label, value, iconName, sub = '') {
+            return `
+                <div class="glass-card p-6 flex flex-col gap-2">
+                    <div class="flex justify-between items-start">
+                        <span class="text-gray-400 text-xs font-bold uppercase tracking-wider">${label}</span>
+                        <i data-lucide="${iconName}" class="text-blue-500 opacity-50"></i>
+                    </div>
+                    <div class="text-2xl font-bold">${value}</div>
+                    ${sub ? `<div class="text-xs text-green-500">Peak Region: ${sub}</div>` : ''}
+                </div>
+            `;
+        }
+
+        async function initDashboard() {
+            try {
+                const [stats, trends, regional, recovery] = await Promise.all([
+                    fetchData('stats'),
+                    fetchData('trends'),
+                    fetchData('regional'),
+                    fetchData('recovery')
+                ]);
+
+                // Stats
+                const statsGrid = document.getElementById('stats-grid');
+                statsGrid.innerHTML =
+                    createStatCard('Total Usage (MU)', stats.total_usage.toLocaleString(), 'zap') +
+                    createStatCard('Peak Consumption', `${stats.peak_usage} MU`, 'trending-up', stats.peak_state) +
+                    createStatCard('Average Daily', `${stats.avg_usage.toFixed(1)} MU`, 'activity') +
+                    createStatCard('Monitoring Period', `${stats.days_covered} Days`, 'map');
+
+                lucide.createIcons();
+
+                // Trends Chart
+                const trendsCtx = document.getElementById('trendsChart').getContext('2d');
+                new Chart(trendsCtx, {
+                    type: 'line',
+                    data: {
+                        labels: trends.map(t => t.month),
+                        datasets: ['NR', 'WR', 'SR', 'ER', 'NER'].map((region, i) => ({
+                            label: region,
+                            data: trends.map(t => t[region]),
+                            borderColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'][i],
+                            borderWidth: 3,
+                            tension: 0.4,
+                            pointRadius: 0
+                        }))
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { labels: { color: '#94a3b8' } }
+                        },
+                        scales: {
+                            y: { grid: { color: 'rgba(255,255,255,0.05)' }, border: { display: false }, ticks: { color: '#64748b' } },
+                            x: { grid: { display: false }, ticks: { color: '#64748b' } }
+                        }
+                    }
+                });
+
+                // Regional Pie Chart
+                const regionalCtx = document.getElementById('regionalChart').getContext('2d');
+                new Chart(regionalCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: regional.map(r => r.region),
+                        datasets: [{
+                            data: regional.map(r => r.usage),
+                            backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'],
+                            borderWidth: 0,
+                            hoverOffset: 15
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { position: 'bottom', labels: { color: '#94a3b8', padding: 20 } }
+                        },
+                        cutout: '70%'
+                    }
+                });
+
+                // Recovery Bar Chart
+                const recoveryCtx = document.getElementById('recoveryChart').getContext('2d');
+                new Chart(recoveryCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: recovery.map(r => r.region),
+                        datasets: [
+                            { label: 'Normal', data: recovery.map(r => r.Normal), backgroundColor: '#3b82f6', borderRadius: 6 },
+                            { label: 'Lockdown', data: recovery.map(r => r.Lockdown), backgroundColor: '#ef4444', borderRadius: 6 },
+                            { label: 'Recovery', data: recovery.map(r => r.Recovery), backgroundColor: '#10b981', borderRadius: 6 }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { labels: { color: '#94a3b8' } }
+                        },
+                        scales: {
+                            y: { grid: { color: 'rgba(255,255,255,0.05)' }, border: { display: false }, ticks: { color: '#64748b' } },
+                            x: { grid: { display: false }, ticks: { color: '#64748b' } }
+                        }
+                    }
+                });
+
+            } catch (error) {
+                console.error('Error loading dashboard:', error);
+            }
+        }
+
+        initDashboard();
+    </script>
+</body>
+
+</html>
